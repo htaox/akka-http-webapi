@@ -1,3 +1,5 @@
+val circeVersion = "0.9.3"
+
 lazy val main = (project in file("."))
   .settings(
     name := "akka-http-webapi",
@@ -18,6 +20,10 @@ lazy val main = (project in file("."))
       "com.typesafe.slick" %% "slick-testkit" % "3.1.1" % "test",
       "com.typesafe.akka" %% "akka-http-testkit" % "2.4.11"  % "test",
       "org.specs2" %% "specs2-core" % "3.8.5" % "test",
-      "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+      "org.scalatest" %% "scalatest" % "3.0.0" % "test",
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion,
+      "io.circe" %% "circe-derivation" % "0.8.0-M2",
+      "io.circe" %% "circe-parser" % circeVersion
     )
   )
