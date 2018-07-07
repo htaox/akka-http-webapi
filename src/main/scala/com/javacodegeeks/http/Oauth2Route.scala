@@ -20,7 +20,7 @@ import scala.language.postfixOps
 case class OAuthInfo (audience: String, expiresIn: Long = 0)
 case class InvalidTokenError(error: String="invalid_token")
 
-object FakeRemoteAuthServer {
+trait FakeAuthServer {
   implicit val encoder: ObjectEncoder[OAuthInfo] = deriveEncoder(derivation.renaming.snakeCase)
 
   private val storage = Map[String, OAuthInfo]("ABC123" -> OAuthInfo(audience = "client:1", expiresIn = 1530992266969L) )
@@ -33,6 +33,10 @@ object FakeRemoteAuthServer {
       case None => error.asJson.noSpaces
     }
 }
+
+object FakeRemoteAuthServer extends FakeAuthServer
+
+object FakeLocalSessionServer extends FakeAuthServer
 
 trait OAuth2Route {
   def frequencyPreference(in: Long) = (path("frequency-preference") & get) {
@@ -100,27 +104,35 @@ trait OAuth2Route {
       }
     }
 
+  private def unmarshallTokenResponse(json: String) = {
+    implicit val decoder: Decoder[OAuthInfo] = deriveDecoder(derivation.renaming.snakeCase)
+    val resp = decode[OAuthInfo](json)
+
+    resp match {
+      case Right(a) => Some(a)
+      case Left(a) => None
+    }
+  }
+
   def hasScopes(authInfo: OAuthInfo): Boolean = true
 
   def authenticator(credentials: Credentials)(implicit system: ActorSystem, mat: ActorMaterializer): Option[OAuthInfo] = {
     credentials match {
       case p @ Credentials.Provided(token) =>
-        // p.verify(secret = "password")
-        val id = p.identifier
-        val same = token == id
-        // TODO: Check local session store, if not found, check external.
+        // val id = p.identifier
+        // val same = token == id
 
-        // Check remote.
-        val json = FakeRemoteAuthServer.tokenInfo(token)
+        // Check local.
+        val json1 = FakeLocalSessionServer.tokenInfo(token)
+        val r = unmarshallTokenResponse(json1)
 
-        implicit val decoder: Decoder[OAuthInfo] = deriveDecoder(derivation.renaming.snakeCase)
-        val resp = decode[OAuthInfo](json)
-
-        resp match {
-          case Right(a) => Some(a)
-          case Left(a) => None
+        r match {
+          case Some(a) => Some(a)
+          case None =>
+            // Check remote.
+            val json = FakeRemoteAuthServer.tokenInfo(token)
+            unmarshallTokenResponse(json1)
         }
-
       case _ => None
     }
   }
